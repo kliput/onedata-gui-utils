@@ -125,7 +125,7 @@ def edit_message(message)
   end
   open_file(tmp_path)
   puts 'Commit message editor opened, press ENTER when done'
-  gets
+  $stdin.gets
   begin
     file = File.open(tmp_path, 'r')
     new_message = file.read
@@ -136,17 +136,19 @@ def edit_message(message)
   end
 end
 
-chosen_services = ARGV.count > 0 ? ARGV.map {|name| services.detect {|s| s[:name] == name } } : services
+chosen_services = ARGV.count > 1 ? ARGV[1..-1].map {|name| services.detect {|s| s[:name] == name } } : services
 chosen_services.select! {|s| s != nil}
+target_backend_branch = ARGV[0] or 'develop'
 
 puts "Chosen services: #{chosen_services.map {|s| s[:name]} }"
+puts "Target backend branch: #{target_backend_branch}"
 
 chosen_services.each do |service|
   name = service[:name]
   gui = service[:gui]
   backend = service[:backend]
   gui_repo = get_repo(gui)
-  backend_repo = get_repo(backend)
+  backend_repo = get_repo(backend, target_backend_branch)
   latest_gui = last_merge_branch(gui_repo)
   used_gui = current_gui(repo_path(backend))
   puts "#{name}: latest GUI #{latest_gui}, GUI used #{used_gui}"
@@ -160,10 +162,11 @@ chosen_services.each do |service|
     puts commit_message
     issues.each {|i| puts jira_link(i) }
     commit_message = edit_message(commit_message)
-    backend_repo.checkout("feature/#{latest_gui}-update-gui", new_branch: true)
+    backend_new_branch = "feature/#{latest_gui}-update-gui-#{target_backend_branch.sub('/', '-')}"
+    backend_repo.checkout(backend_new_branch, new_branch: true)
     change_gui(backend, latest_gui)
     backend_repo.add('gui-config.sh')
     backend_repo.commit(commit_message)
-    backend_repo.push
+    backend_repo.push(remote = 'origin', branch = backend_new_branch)
   end
 end
