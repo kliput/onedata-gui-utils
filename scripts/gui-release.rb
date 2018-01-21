@@ -39,13 +39,14 @@ def repo_path(type)
   File.join(REPO_ROOT, type)
 end
   
-def get_repo(project_type)
+def get_repo(project_type, branch = nil)
   path = repo_path(project_type)
   if not File.exist?(path)
     Git.clone(repo_uri(project_type), project_type, path: REPO_ROOT)
   end
   git = Git.open(path)
-  git.checkout('develop')
+  git.fetch
+  git.checkout((branch or 'develop'))
   git.pull
   git.reset_hard
   git
@@ -114,7 +115,7 @@ def included_issues(commits)
 end
 
 def issues_str(issues)
-  issues.reduce('') {|sum, msg| sum += "- #{msg}\n" }
+  issues.reduce('') {|sum, msg| sum += "* #{msg}\n" }
 end
 
 def edit_message(message)
@@ -135,7 +136,12 @@ def edit_message(message)
   end
 end
 
-services.each do |service|
+chosen_services = ARGV.count > 0 ? ARGV.map {|name| services.detect {|s| s[:name] == name } } : services
+chosen_services.select! {|s| s != nil}
+
+puts "Chosen services: #{chosen_services.map {|s| s[:name]} }"
+
+chosen_services.each do |service|
   name = service[:name]
   gui = service[:gui]
   backend = service[:backend]
@@ -150,7 +156,6 @@ services.each do |service|
     publish_docker(gui, latest_gui)
     diff_commits = gui_diff(gui_repo, used_gui, latest_gui)
     issues = included_issues(diff_commits)
-    # commit_message = "#{latest_gui} Updating GUI, including:\n#{issues_str(issues)}"
     commit_message = "Updating GUI, including: #{issues.join(', ')}\n#{issues_str(issues)}"
     puts commit_message
     issues.each {|i| puts jira_link(i) }
@@ -159,5 +164,6 @@ services.each do |service|
     change_gui(backend, latest_gui)
     backend_repo.add('gui-config.sh')
     backend_repo.commit(commit_message)
+    backend_repo.push
   end
 end
