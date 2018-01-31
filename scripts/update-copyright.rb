@@ -19,9 +19,9 @@ files.each do |path|
   content.gsub! /(?<head>.*\(C\) )(?<years>\d+|(?<year_a>\d+)-(?<year_b>\d+))(?<tail> ACK.*)/ do |match|
     if $~[:years]
       if $~[:year_a] and $~[:year_b]
-        "#{$~[:head]}#{$~[:year_a]}-2018#{$~[:tail]}"
+        "#{$~[:head]}#{$~[:year_a]}-#{year}#{$~[:tail]}"
       elsif $~[:years] != year.to_s
-        "#{$~[:head]}#{$~[:years]}-2018#{$~[:tail]}"
+        "#{$~[:head]}#{$~[:years]}-#{year}#{$~[:tail]}"
       else
         "#{$~[:head]}#{$~[:years]}#{$~[:tail]}"
       end
