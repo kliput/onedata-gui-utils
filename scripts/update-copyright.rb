@@ -15,17 +15,21 @@ puts "using start revision: #{start_revision}"
 files = %x[git diff --name-only '#{start_revision}..HEAD' | grep '.*.js$'].split("\n")
 files.each do |path|
   puts path
-  content = File.read(path)
-  content.gsub! /(?<head>.*\(C\) )(?<years>\d+|(?<year_a>\d+)-(?<year_b>\d+))(?<tail> ACK.*)/ do |match|
-    if $~[:years]
-      if $~[:year_a] and $~[:year_b]
-        "#{$~[:head]}#{$~[:year_a]}-#{year}#{$~[:tail]}"
-      elsif $~[:years] != year.to_s
-        "#{$~[:head]}#{$~[:years]}-#{year}#{$~[:tail]}"
-      else
-        "#{$~[:head]}#{$~[:years]}#{$~[:tail]}"
+  begin
+    content = File.read(path)
+    content.gsub! /(?<head>.*\(C\) )(?<years>\d+|(?<year_a>\d+)-(?<year_b>\d+))(?<tail> ACK.*)/ do |match|
+      if $~[:years]
+        if $~[:year_a] and $~[:year_b]
+          "#{$~[:head]}#{$~[:year_a]}-#{year}#{$~[:tail]}"
+        elsif $~[:years] != year.to_s
+          "#{$~[:head]}#{$~[:years]}-#{year}#{$~[:tail]}"
+        else
+          "#{$~[:head]}#{$~[:years]}#{$~[:tail]}"
+        end
       end
     end
+    File.write(path, content);
+  rescue
+    puts "Error reading file: #{$!}"
   end
-  File.write(path, content);
 end
