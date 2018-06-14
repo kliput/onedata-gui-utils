@@ -1,11 +1,12 @@
 #!/usr/bin/env ruby
+# Usage: ./gui-release.sh <target_backend_branch> <source_frontend_branch> <service_name_1> <service_name_2>...
 
 require 'git'
 require 'tempfile'
 
 REPO_ROOT = '/tmp'
-MERGE_RE = /Merge pull request.*from (.*)\/(VFS-\d+).*\s*/
-GUI_CONFIG_RE = /^PRIMARY_IMAGE=.*(VFS-\d+)/
+MERGE_RE = /Merge pull request.*from (.*)\/(VFS-\d+\S*).*\s*/
+GUI_CONFIG_RE = /^PRIMARY_IMAGE=.*(VFS-\d+\S*)'/
 
 def open_file(path)
   if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
@@ -25,6 +26,7 @@ def is_merge_commit(commit)
   commit.parents.count > 1 and commit.message =~ MERGE_RE
 end
 
+# returns a branch name without prefix, eg. VFS-9999-hello-world
 def last_merge_branch(repo)
   merge_commit = repo.log.find {|c| is_merge_commit(c)}
   MERGE_RE.match(merge_commit.message)[2]
@@ -39,15 +41,15 @@ def repo_path(type)
   File.join(REPO_ROOT, type)
 end
   
-def get_repo(project_type, branch = nil)
+def get_repo(project_type, branch = 'develop')
   path = repo_path(project_type)
   if not File.exist?(path)
     Git.clone(repo_uri(project_type), project_type, path: REPO_ROOT)
   end
   git = Git.open(path)
   git.fetch
-  git.checkout((branch or 'develop'))
-  git.pull
+  git.checkout(branch)
+  git.pull('origin', branch)
   git.reset_hard
   git
 end
@@ -55,7 +57,7 @@ end
 def change_gui(backend_type, gui_ref)
   path = File.join(repo_path(backend_type), 'gui-config.sh')
   File.open(path, 'r+') do |gui_config|
-    new_content = gui_config.read.gsub(/VFS-\d+/, gui_ref)
+    new_content = gui_config.read.gsub(/VFS-\d+\S*(?=')/, gui_ref)
     gui_config.rewind
     gui_config.write(new_content)
   end
@@ -83,7 +85,7 @@ services = [
   },
   {
     name: 'zone',
-    gui: 'oz-gui-default',
+    gui: 'onezone-gui',
     backend: 'oz-worker',
   },
   {
@@ -136,18 +138,21 @@ def edit_message(message)
   end
 end
 
-chosen_services = ARGV.count > 1 ? ARGV[1..-1].map {|name| services.detect {|s| s[:name] == name } } : services
+chosen_services = ARGV.count > 2 ? ARGV[2..-1].map {|name| services.detect {|s| s[:name] == name } } : services
 chosen_services.select! {|s| s != nil}
+# eg. 'release/18.07.0-alpha'
 target_backend_branch = ARGV[0] or 'develop'
+source_frontend_branch = ARGV[1] or 'develop'
 
 puts "Chosen services: #{chosen_services.map {|s| s[:name]} }"
 puts "Target backend branch: #{target_backend_branch}"
+puts "Source frontend branch: #{source_frontend_branch}"
 
 chosen_services.each do |service|
   name = service[:name]
   gui = service[:gui]
   backend = service[:backend]
-  gui_repo = get_repo(gui)
+  gui_repo = get_repo(gui, source_frontend_branch)
   backend_repo = get_repo(backend, target_backend_branch)
   latest_gui = last_merge_branch(gui_repo)
   used_gui = current_gui(repo_path(backend))
@@ -156,11 +161,18 @@ chosen_services.each do |service|
     puts '^ GUI versions the same - update not needed'
   else
     publish_docker(gui, latest_gui)
-    diff_commits = gui_diff(gui_repo, used_gui, latest_gui)
-    issues = included_issues(diff_commits)
-    commit_message = "Updating GUI, including: #{issues.join(', ')}\n#{issues_str(issues)}"
+    issues_str =
+      begin
+        diff_commits = gui_diff(gui_repo, used_gui, latest_gui)
+        issues = included_issues(diff_commits)
+        issues.each {|i| puts jira_link(i) }
+        ", including: #{issues.join(', ')}\n#{issues_str(issues)}"
+      rescue Exception => error
+        puts "Error making changelog: #{error}"
+        " to: #{used_gui}"
+      end
+    commit_message = "Updating GUI#{issues_str}"
     puts commit_message
-    issues.each {|i| puts jira_link(i) }
     commit_message = edit_message(commit_message)
     backend_new_branch = "feature/#{latest_gui}-update-gui-#{target_backend_branch.sub('/', '-')}"
     backend_repo.checkout(backend_new_branch, new_branch: true)
