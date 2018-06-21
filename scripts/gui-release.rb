@@ -98,12 +98,15 @@ services = [
 def publish_docker(type, version)
   short_name = "#{type}:#{version}"
   command = "
-    docker pull docker.onedata.org/#{short_name}
-    docker tag docker.onedata.org/#{short_name} onedata/#{short_name}
-    docker push onedata/#{short_name}
+    docker pull docker.onedata.org/#{short_name} || exit $?
+    docker tag docker.onedata.org/#{short_name} onedata/#{short_name} || exit $?
+    docker push onedata/#{short_name} || exit $?
   "
   puts command
   %x(#{command})
+  if $?.exitstatus != 0
+    raise 'Docker commands failed!'
+  end
 end
 
 def jira_link(issue)
@@ -156,7 +159,7 @@ chosen_services.each do |service|
   backend_repo = get_repo(backend, target_backend_branch)
   latest_gui = last_merge_branch(gui_repo)
   used_gui = current_gui(repo_path(backend))
-  puts "#{name}: latest GUI #{latest_gui}, GUI used #{used_gui}"
+  puts "#{name}: latest available GUI: #{latest_gui}, GUI used in backend: #{used_gui}"
   if latest_gui == used_gui
     puts '^ GUI versions the same - update not needed'
   else
@@ -169,7 +172,7 @@ chosen_services.each do |service|
         ", including: #{issues.join(', ')}\n#{issues_str(issues)}"
       rescue Exception => error
         puts "Error making changelog: #{error}"
-        " to: #{used_gui}"
+        " to: #{latest_gui}"
       end
     commit_message = "Updating GUI#{issues_str}"
     puts commit_message
