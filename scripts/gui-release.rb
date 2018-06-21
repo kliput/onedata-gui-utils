@@ -64,9 +64,10 @@ def change_gui(backend_type, gui_ref)
 end
 
 def find_merge_commit(repo, version)
+  version_regexp = Regexp.new version
   repo.log.find do |c|
     merge_match = MERGE_RE.match(c.message)
-    c.parents.count > 1 and merge_match and merge_match[2] == version
+    c.parents.count > 1 and merge_match and version_regexp.match(merge_match[2])
   end
 end
 
@@ -86,6 +87,11 @@ services = [
   {
     name: 'zone',
     gui: 'onezone-gui',
+    backend: 'oz-worker',
+  },
+  {
+    name: 'zone-old',
+    gui: 'oz-gui-default',
     backend: 'oz-worker',
   },
   {
@@ -172,6 +178,7 @@ chosen_services.each do |service|
         ", including: #{issues.join(', ')}\n#{issues_str(issues)}"
       rescue Exception => error
         puts "Error making changelog: #{error}"
+        puts "Backtrace:\n\t#{error.backtrace.join("\n\t")}"
         " to: #{latest_gui}"
       end
     commit_message = "Updating GUI#{issues_str}"
