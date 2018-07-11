@@ -56,9 +56,10 @@ end
 
 def change_gui(backend_type, gui_ref)
   path = File.join(repo_path(backend_type), 'gui-config.sh')
-  File.open(path, 'r+') do |gui_config|
-    new_content = gui_config.read.gsub(/VFS-\d+\S*(?=')/, gui_ref)
-    gui_config.rewind
+  new_content = File.open(path, 'r') do |gui_config|
+    gui_config.read.gsub(/VFS-\d+\S*(?=')/, gui_ref)
+  end
+  File.open(path, 'w') do |gui_config|
     gui_config.write(new_content)
   end
 end
