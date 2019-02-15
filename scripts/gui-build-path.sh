@@ -14,11 +14,12 @@ fi
 
 if [[ "$TYPE" == o?-panel ]]; then
   REPO_DIR="onepanel"
+  TYPE_ABBREV=`echo $TYPE | head -c 2`
+  SHA=`shasum -a 256 $PREFIX/$REPO_DIR/_build/default/rel/${TYPE_ABBREV}_panel/data/$FILE_NAME | cut -d ' ' -f 1`
 else
   REPO_DIR=$TYPE
+  SHA=`shasum -a 256 $PREFIX/$REPO_DIR/_build/default/lib/$FILE_NAME | cut -d ' ' -f 1`
 fi
-
-SHA=`shasum -a 256 $PREFIX/$REPO_DIR/_build/default/lib/$FILE_NAME | cut -d ' ' -f 1`
 
 case "$TYPE" in
   oz-worker)
