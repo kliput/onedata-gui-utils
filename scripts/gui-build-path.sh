@@ -6,11 +6,7 @@ PREFIX=$2
 if [ -z "$TYPE" ]; then exit 1; fi
 if [ -z "$PREFIX" ]; then exit 2; fi
 
-if [ "$TYPE" == "oz-worker" ]; then
-  FILE_NAME="oz_gui_static.tar.gz"
-else
-  FILE_NAME="gui_static.tar.gz"
-fi
+FILE_NAME="gui_static.tar.gz"
 
 if [[ "$TYPE" == o?-panel ]]; then
   REPO_DIR="onepanel"
