@@ -34,4 +34,4 @@ case "$TYPE" in
     exit 3
 esac
 
-echo "$PREFIX/oz-worker/_build/default/rel/oz_worker/data/gui_static/$GUI_DIR/$SHA"
+echo "$PREFIX/oz-worker/_build/default/rel/oz_worker/etc/gui_static/$GUI_DIR/$SHA"
