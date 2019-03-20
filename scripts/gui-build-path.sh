@@ -19,10 +19,10 @@ fi
 
 case "$TYPE" in
   oz-worker)
-    GUI_DIR="oz"
+    GUI_DIR="ozw"
     ;;
   op-worker)
-    GUI_DIR="op"
+    GUI_DIR="opw"
     ;;
   op-panel)
     GUI_DIR="opp"
